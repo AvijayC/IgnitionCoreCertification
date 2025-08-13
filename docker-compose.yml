@@ -1,0 +1,75 @@
+services:
+  ignition1:
+    image: inductiveautomation/ignition:latest
+    container_name: ignition_gw1
+    ports:
+      - "8188:8088"
+    volumes:
+      - ignition1_data:/usr/local/bin/ignition/data
+    networks:
+      ignition_net:
+        ipv4_address: 172.20.0.2
+    restart: unless-stopped
+
+  ignition2:
+    image: inductiveautomation/ignition:latest
+    container_name: ignition_gw2
+    ports:
+      - "8288:8088"
+    volumes:
+      - ignition2_data:/usr/local/bin/ignition/data
+    networks:
+      ignition_net:
+        ipv4_address: 172.20.0.3
+    restart: unless-stopped
+
+  postgres:
+    image: postgres:15-alpine
+    container_name: ignition_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init-scripts:/docker-entrypoint-initdb.d
+    environment:
+      - POSTGRES_DB=ignition_db
+      - POSTGRES_USER=ignition_user
+      - POSTGRES_PASSWORD=ignition_password
+    networks:
+      ignition_net:
+        ipv4_address: 172.20.0.4
+    restart: unless-stopped
+
+  mailcatcher:
+    image: dockage/mailcatcher
+    container_name: mailcatcher
+    ports:
+      - "1080:1080"
+    networks:
+      ignition_net:
+        ipv4_address: 172.20.0.5
+
+volumes:
+  ignition1_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ./volumes/ignition1_data
+  ignition2_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ./volumes/ignition2_data
+  postgres_data:
+    driver: local
+
+networks:
+  ignition_net:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/24
+          gateway: 172.20.0.1
+      

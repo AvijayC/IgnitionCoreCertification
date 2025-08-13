@@ -1,0 +1,159 @@
+version: '3.8'
+
+services:
+  # Primary Gateway - Vision focused
+  ignition1:
+    image: inductiveautomation/ignition:latest
+    container_name: ignition_gw1
+    ports:
+      - "8188:8088"
+    volumes:
+      - ignition1_data:/usr/local/bin/ignition/data
+      - shared_storage:/shared
+    environment:
+      - GATEWAY_ADMIN_USERNAME=admin
+      - GATEWAY_ADMIN_PASSWORD=password
+      - IGNITION_EDITION=standard
+      - TZ=America/New_York
+    networks:
+      ignition_network:
+        aliases:
+          - gw1.local
+    depends_on:
+      - postgres
+    restart: unless-stopped
+
+  # Secondary Gateway - Perspective focused  
+  ignition2:
+    image: inductiveautomation/ignition:latest
+    container_name: ignition_gw2
+    ports:
+      - "8288:8088"
+    volumes:
+      - ignition2_data:/usr/local/bin/ignition/data
+      - shared_storage:/shared
+    environment:
+      - GATEWAY_ADMIN_USERNAME=admin
+      - GATEWAY_ADMIN_PASSWORD=password
+      - IGNITION_EDITION=standard
+      - TZ=America/New_York
+    networks:
+      ignition_network:
+        aliases:
+          - gw2.local
+    depends_on:
+      - postgres
+    restart: unless-stopped
+
+  # Database service
+  postgres:
+    image: postgres:15-alpine
+    container_name: ignition_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init-scripts:/docker-entrypoint-initdb.d
+    environment:
+      - POSTGRES_DB=ignition_db
+      - POSTGRES_USER=ignition_user
+      - POSTGRES_PASSWORD=ignition_password
+      - TZ=America/New_York
+    networks:
+      - ignition_network
+    restart: unless-stopped
+
+  # OPC UA Simulator for device connections
+  opcua_simulator:
+    image: opcfoundation/ua-netstandard-opc-ua-console-reference-server:latest
+    container_name: opcua_sim
+    ports:
+      - "4840:4840"
+    networks:
+      - ignition_network
+    restart: unless-stopped
+
+  # DNS resolver for .local domains
+  dnsmasq:
+    image: jpillora/dnsmasq
+    container_name: ignition_dns
+    ports:
+      - "53:53/udp"
+    environment:
+      - "HTTP_USER=admin"
+      - "HTTP_PASS=admin"
+    command: --address=/.local/127.0.0.1
+    networks:
+      - ignition_network
+    restart: unless-stopped
+
+  # MQTT Broker for IoT simulation
+  mosquitto:
+    image: eclipse-mosquitto:2.0
+    container_name: ignition_mqtt
+    ports:
+      - "1883:1883"
+      - "9001:9001"
+    volumes:
+      - ./mosquitto.conf:/mosquitto/config/mosquitto.conf
+      - mosquitto_data:/mosquitto/data
+      - mosquitto_logs:/mosquitto/log
+    networks:
+      - ignition_network
+    restart: unless-stopped
+
+# Named volumes for persistent data
+volumes:
+  ignition1_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ./volumes/ignition1_data
+  
+  ignition2_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ./volumes/ignition2_data
+  
+  postgres_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ./volumes/postgres_data
+  
+  shared_storage:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ./volumes/shared
+  
+  mosquitto_data:
+    driver: local
+  
+  mosquitto_logs:
+    driver: local
+
+# Custom bridge network
+networks:
+  ignition_network:
+    driver: bridge
+    driver_opts:
+      com.docker.network.bridge.name: ignition_br0
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
+          gateway: 172.20.0.1
+
+# Health checks and additional configuration
+x-common-healthcheck: &common-healthcheck
+  healthcheck:
+    test: ["CMD", "curl", "-f", "http://localhost:8088"]
+    interval: 30s
+    timeout: 10s
+    retries: 3
+    start_period: 60s
