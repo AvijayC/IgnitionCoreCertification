@@ -23,6 +23,18 @@ services:
         ipv4_address: 172.20.0.3
     restart: unless-stopped
 
+  ignition3:
+    image: inductiveautomation/ignition:latest
+    container_name: ignition_gw3
+    ports:
+      - "8388:8088"
+    volumes:
+      - ignition3_data:/usr/local/bin/ignition/data
+    networks:
+      ignition_net:
+        ipv4_address: 172.20.0.6
+    restart: unless-stopped
+
   postgres:
     image: postgres:15-alpine
     container_name: ignition_db
@@ -62,6 +74,12 @@ volumes:
       type: none
       o: bind
       device: ./volumes/ignition2_data
+  ignition3_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ./volumes/ignition3_data
   postgres_data:
     driver: local
 

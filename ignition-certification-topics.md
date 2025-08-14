@@ -5,10 +5,10 @@
 | Topic | Subtopic | Completed | Notes |
 |-------|----------|-----------|-------|
 | **1. Ignition Platform / Gateway Basics** | | | |
-| | Gateway and Project Backups | ☐ | |
-| | Database Connections | ☐ | |
-| | Device Connections | ☐ | |
-| | Licensing | ☐ | |
+| | Gateway and Project Backups | ✅ | |
+| | Database Connections | ✅ | |
+| | Device Connections | ✅ | |
+| | Licensing | ✅ |
 | | Ignition Designer | ☐ | |
 | | Installing Ignition | ☐ | |
 | | Gateway Network | ☐ | |
